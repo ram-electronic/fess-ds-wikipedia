@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  # actions/attest-build-provenance needs both: id-token to mint the
+  # Sigstore/OIDC identity it signs with, attestations to publish the
+  # resulting attestation to this repo.
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build
+        run: mvn -B clean package -DskipTests
+
+      # pom.xml's <version> tracks the upstream fess-ds-wikipedia release
+      # this fork was patched from (15.8.0), not this fork's own release
+      # tag — so the jar's filename doesn't change from tag to tag.
+      # -sources.jar/-javadoc.jar are also built (maven-source-plugin/
+      # maven-javadoc-plugin in pom.xml) but aren't what gets installed
+      # into Fess, so only the plain jar is attached here.
+      - name: Locate built jar
+        id: jar
+        run: |
+          jar=$(find target -maxdepth 1 -name 'fess-ds-wikipedia-*.jar' \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar')
+          echo "path=$jar" >> "$GITHUB_OUTPUT"
+
+      # Signs the jar with Sigstore via GitHub's OIDC identity (keyless --
+      # no GPG key to generate, store, or rotate) and publishes the
+      # attestation to this repo. Proves the jar came from this exact
+      # workflow run, on this exact commit -- verify with:
+      #   gh attestation verify fess-ds-wikipedia-1.0.0.jar -R ram-electronic/fess-ds-wikipedia
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.jar.outputs.path }}
+
+      - name: Create release
+        uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
+        with:
+          files: ${{ steps.jar.outputs.path }}
+          generate_release_notes: true
