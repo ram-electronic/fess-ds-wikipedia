@@ -31,6 +31,12 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 			</plugin>
 			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<failIfNoTests>true</failIfNoTests>
+				</configuration>
+			</plugin>
+			<plugin>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
 			<plugin>
@@ -143,6 +149,25 @@
 			<groupId>org.codelibs</groupId>
 			<artifactId>corelib</artifactId>
 			<version>${corelib.version}</version>
+		</dependency>
+		<!-- Provided by Fess (WEB-INF/lib), pulled in transitively via poi-ooxml, whose version
+		     is driven by fess-parent's poi.version property. fess-parent has no version property
+		     for commons-compress itself, so the version is pinned here and must match what
+		     poi-ooxml (and therefore Fess) actually ships; watch poi.version for drift. -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<version>1.28.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<!-- Provided by Fess (WEB-INF/lib), which gets it from OpenSearch and Tika.
+		     Note Fess also ships jackson-core 3.x under the tools.jackson package;
+		     this plugin uses the 2.x com.fasterxml.jackson package. -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.22.1</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.lastaflute</groupId>

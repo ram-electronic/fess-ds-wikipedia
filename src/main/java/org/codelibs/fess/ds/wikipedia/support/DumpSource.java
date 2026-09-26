@@ -15,24 +15,17 @@
  */
 package org.codelibs.fess.ds.wikipedia.support;
 
-/**
- * Handles WikiPage objects and notifies the WikiXMLParser.
- */
-public class IteratorHandler implements PageCallbackHandler {
+import java.util.function.Consumer;
 
-    private WikiXMLParser parser = null;
+/**
+ * A dump in some format, read as a stream of pages.
+ */
+public interface DumpSource {
 
     /**
-     * Constructs an IteratorHandler with the specified WikiXMLParser.
-     * @param myParser The WikiXMLParser instance to be used for page notifications.
+     * Reads the dump, passing every page to the consumer in the order the dump lists them.
+     *
+     * @param consumer the callback invoked for each page
      */
-    public IteratorHandler(final WikiXMLParser myParser) {
-        parser = myParser;
-    }
-
-    @Override
-    public void process(final WikiPage page) {
-        parser.notifyPage(page);
-    }
-
+    void forEach(Consumer<WikiDocument> consumer);
 }
