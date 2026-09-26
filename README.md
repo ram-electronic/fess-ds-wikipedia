@@ -21,21 +21,32 @@ they all go through the same code path.
 ## What's patched
 
 `src/main/java/org/codelibs/fess/ds/wikipedia/support/WikiTextParser.java`,
-`getPlainText()`:
+`getPlainText()`, no longer uses regexes. It parses the page with
+[Sweble](https://github.com/rzo1/sweble-wikitext) (`swc-engine`), a real
+MediaWiki wikitext parser, and renders the resulting syntax tree to plain text
+with `SwebleTextConverter` (adapted from Sweble's example `TextConverter`):
 
-- Strips section headers (`== Heading ==`, any level), keeping the heading
-  text but dropping the `=` markup.
-- Strips leading bullet/numbered/definition list markers (`*`, `#`, `:`,
-  `;`) at the start of a line.
-- Strips HTML comments (`<!-- ... -->`).
-- Handles `<ref>` tags that carry attributes (`<ref name="...">`) or are
-  self-closing (`<ref .../>`) — upstream only matched the bare
-  `<ref>...</ref>` form.
-- Correctly resolves piped links (`[[Link|Text]]` → `Text`, including
-  multi-pipe forms like `[[File:x.jpg|thumb|Caption]]` → `Caption`) instead
-  of the fragile single-word-only regex upstream used.
+- Keeps the text of section headings, list items, links (`[[Link|Text]]` →
+  `Text`, `[[dog]]s` → `dogs`), labeled external links
+  (`[http://example.com label]` → `label`) and tables (one line per row).
+- Drops templates (including nested and multi-line ones such as infoboxes),
+  `<ref>` tags in all forms, HTML comments, images and their captions,
+  categories, interlanguage links, magic words (`__TOC__`) and HTML tags.
+- Keeps apostrophes inside words (`Einstein's`), which the regex chain
+  stripped along with `'''bold'''`/`''italic''` markup, and decodes entities
+  to the characters MediaWiki displays (`&ndash;` → `–`, `&lt;tag&gt;` →
+  `<tag>`).
 
-See `WikiTextParserTest.java` for the added test cases.
+Text that a template would render is lost, e.g. `{{math|E=mc²}}` or
+`{{lang|…}}`. The regex version was meant to drop templates too, but often
+failed to. Parsing is roughly 5–7× slower than the regex chain (about
+100–150 ms for a large article such as *Germany*). If Sweble throws on a page,
+the old regex stripping (`getPlainTextByRegex()`) is used as a fallback and a
+warning is logged.
+
+See `SweblePlainTextTest.java` for the test cases, including a comparison of
+both implementations on real articles (`src/test/resources/wikitext/`, CC
+BY-SA 4.0 Wikipedia revisions attributed in that folder's `README.md`).
 
 ## Everything else
 
@@ -52,6 +63,16 @@ for general usage.
   version (`pom.xml`'s top-level `<version>`, and its release tags) is
   independent semver, not tied to Fess's version — same reasoning as
   [`ram-electronic/fess-ds-trello`](https://github.com/ram-electronic/fess-ds-trello).
+- Sweble and its dependencies are bundled into the plugin jar with
+  `maven-shade-plugin` (about 3.8 MB), so installing the single jar is still
+  enough. `commons-lang3`, `commons-io`, `slf4j` and `log4j` are not bundled;
+  Fess provides them at runtime.
+
+## Testing
+
+`mvn test` runs all tests. Surefire's `failIfNoTests` (from upstream) fails
+the build if none are discovered, so a test method missing `@Test` can't
+silently turn the suite into a no-op again.
 
 ## Releases
 
