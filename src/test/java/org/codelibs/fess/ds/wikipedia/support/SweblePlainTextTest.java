@@ -119,16 +119,28 @@ public class SweblePlainTextTest {
     }
 
     @Test
+    public void templateLeavesNoSpaceBeforeClosingPunctuation() {
+        final String w = "The {{langx|de|Haus}}; and the formula{{math|x}}, which";
+        assertEquals("The de Haus; and the formula x, which", sweble(w));
+        // the space before "{{langx" is real whitespace in the source, so it stays
+        assertEquals("The ; and the formula, which", sweble(w, "*", null, false));
+    }
+
+    @Test
     public void nestedTemplates() {
         final String w = "A {{outer|x={{inner|y}}|z}} B";
-        assertEquals("A B", sweble(w));
+        // template text is kept by default, nested templates included
+        assertEquals("A y z B", sweble(w));
+        assertEquals("A B", sweble(w, "*", null, false));
         assertTrue(regex(w).contains("}}"), regex(w));
     }
 
     @Test
     public void multiLineInfobox() {
         final String w = "{{Infobox person\n| name = X\n| birth = {{birth date|1900|1|1}}\n}}\n'''X''' was a person.";
-        assertEquals("X was a person.", sweble(w));
+        // infobox values are kept by default, parameter names are not
+        assertEquals("X 1900 1 1\nX was a person.", sweble(w));
+        assertEquals("X was a person.", sweble(w, "Infobox person", null, false));
         assertTrue(regex(w).contains("name = X"), regex(w));
     }
 
@@ -142,8 +154,9 @@ public class SweblePlainTextTest {
     @Test
     public void imageWithNestedLinkInCaption() {
         final String w = "Before [[File:X.jpg|thumb|A caption with [[link]]]] after";
-        // a thumbnail breaks the paragraph, hence the newline
-        assertEquals("Before\nafter", sweble(w));
+        // a thumbnail breaks the paragraph, hence the newlines; its caption is kept by default
+        assertEquals("Before\nA caption with link\nafter", sweble(w));
+        assertEquals("Before\nafter", sweble(w, null, null, true));
         assertTrue(regex(w).contains("]"), regex(w));
     }
 
@@ -161,11 +174,85 @@ public class SweblePlainTextTest {
         assertEquals("a b c – d", sweble("__NOTOC__ a b&nbsp;c &ndash; d"));
     }
 
+    // ===== Options: drop_templates / keep_templates / drop_captions =====
+
+    private static String sweble(final String wikiText, final String dropTemplates, final String keepTemplates,
+            final boolean dropCaptions) {
+        return new WikiTextParser(wikiText).getPlainText(PlainTextOptions.of(dropTemplates, keepTemplates, dropCaptions));
+    }
+
+    @Test
+    public void templateArgumentTextIsKeptByDefault() {
+        final String w = "Before {{Note|Restart [[Apache|the web server]] after '''changes'''.|title=Careful}} after";
+        // argument values are parsed as wikitext; the parameter name "title=" is not kept
+        assertEquals("Before Restart the web server after changes. Careful after", sweble(w));
+        // nested templates are kept as well
+        assertEquals("A Keep this B", sweble("A {{Note|Keep {{nowrap|this}}}} B"));
+    }
+
+    @Test
+    public void dropTemplatesFiltersTheListedOnes() {
+        final String w = "A {{Note|Keep {{Cite web|title=Cited title|url=https://example.com}}}} B";
+        // a bare URL in an argument is dropped like any bare URL
+        assertEquals("A Keep Cited title B", sweble(w));
+        // dropped also when nested in a kept template
+        assertEquals("A Keep B", sweble(w, "Cite web", null, false));
+    }
+
+    @Test
+    public void dropAllWithKeepTemplatesIsAnAllowlist() {
+        final String w = "A {{Note|Keep {{nowrap|this}}}}{{Infobox|name=X}} B";
+        assertEquals("A Keep B", sweble(w, "*", "Note", false));
+        assertEquals("A Keep this B", sweble(w, "*", "Note, Nowrap", false));
+        assertEquals("A B", sweble(w, "*", null, false));
+    }
+
+    @Test
+    public void templateOnItsOwnLineBecomesItsOwnLine() {
+        // as at the top of many articles: a short description and a maintenance tag before the lead
+        final String w = "{{Short description|Java library}}\n{{More citations needed|date=February 2012}}\n'''Lucene''' is a library.";
+        assertEquals("Java library\nFebruary 2012\nLucene is a library.", sweble(w));
+        assertEquals("Lucene is a library.", sweble(w, "*", null, false));
+    }
+
+    @Test
+    public void templateAtTheStartOfAnArgumentStaysInline() {
+        // a footnote whose text starts with another template, as in the lead of "Germany"
+        final String w = "'''Germany''',{{efn|{{langx|de|Deutschland}}; {{IPA|de|ˈdɔʏtʃlant}}}} officially a republic";
+        assertEquals("Germany, de Deutschland; de ˈdɔʏtʃlant officially a republic", sweble(w));
+        assertEquals("Germany, officially a republic", sweble(w, "Efn", null, false));
+    }
+
+    @Test
+    public void nonAsciiTextIsKept() {
+        assertEquals("Born in the Kingdom of Württemberg (el Ελλάδα, ja 日本)",
+                sweble("Born in the [[Kingdom of Württemberg]] ({{lang|el|Ελλάδα}}, {{lang|ja|日本}})"));
+    }
+
+    @Test
+    public void captionsAreKeptUnlessDropped() {
+        final String w = "Intro\n[[File:X.jpg|thumb|upright=1.2|alt=Alt text|A caption with [[Link|a link]]]]\nOutro";
+        // options and alt text are not prose; only the caption is kept
+        assertEquals("Intro\nA caption with a link\nOutro", sweble(w));
+        assertEquals("Intro\nOutro", sweble(w, null, null, true));
+    }
+
+    @Test
+    public void galleryCaptionsAreKeptUnlessDropped() {
+        final String w =
+                "A\n<gallery>\nFile:Berlin.jpg|The [[Reichstag]] at night\nBonn.jpg|alt=x|Bonn from '''above'''\nNoCaption.jpg\n</gallery>\nB";
+        assertEquals("A\nThe Reichstag at night\nBonn from above\nB", sweble(w));
+        assertEquals("A B", sweble(w, null, null, true));
+    }
+
     // ===== Tag extensions =====
 
     @Test
-    public void galleryIsDropped() {
-        assertEquals("A B", sweble("A\n<gallery>\nFile:Berlin.jpg|The [[Reichstag]] at night\nFile:Bonn.jpg\n</gallery>\nB"));
+    public void galleryIsDroppedWithItsCaptions() {
+        // file names never reach the text; with drop_captions nothing of the gallery does
+        final String w = "A\n<gallery>\nFile:Berlin.jpg|The [[Reichstag]] at night\nFile:Bonn.jpg\n</gallery>\nB";
+        assertEquals("A\nThe Reichstag at night\nB", sweble(w));
+        assertEquals("A B", sweble(w, null, null, true));
     }
 
     @Test
@@ -195,60 +282,44 @@ public class SweblePlainTextTest {
     }
 
     // ===== Real articles =====
-    // Regression checks on real, messy wikitext (CC BY-SA fixtures, see src/test/resources/wikitext/README.md):
-    // no markup may survive, and prose from every part of the article must.
+    // Individual conversions are tested on snippets above. These check invariants on real, messy
+    // wikitext (CC BY-SA fixtures, see src/test/resources/wikitext/README.md) that snippets can't:
+    // no markup survives anywhere, and the whole article is converted, not cut off or handed to the
+    // regex fallback. Both are derived from the source, so the fixtures never need to be read.
 
     private static final Pattern LEFTOVER_MARKUP =
             Pattern.compile("\\{\\{|\\}\\}|\\[\\[|\\]\\]|''|^=+|=+$|^\\s*[*#]|\\{\\||\\|\\}|<ref|</", Pattern.MULTILINE);
 
-    private static String article(final String name) throws IOException {
-        final String text = sweble(Files.readString(Path.of("src/test/resources/wikitext/" + name + ".txt"), StandardCharsets.UTF_8));
-        final List<String> leftovers = LEFTOVER_MARKUP.matcher(text).results().map(m -> m.group()).toList();
-        assertTrue(leftovers.isEmpty(), name + ": leftover markup " + leftovers);
-        return text;
-    }
+    /** A section heading whose text is plain (no links, templates, tags or entities). */
+    private static final Pattern PLAIN_HEADING = Pattern.compile("^(={2,6}) *([^=\\[\\]{}<>&'|]+?) *\\1 *$", Pattern.MULTILINE);
 
-    private static void assertContains(final String text, final String expected) {
-        assertTrue(text.contains(expected), () -> "missing: " + expected.replace("\n", "\\n"));
-    }
+    private static void assertConvertsWholeArticle(final String name) throws IOException {
+        final String wikiText = Files.readString(Path.of("src/test/resources/wikitext/" + name + ".txt"), StandardCharsets.UTF_8);
+        final List<String> headings = PLAIN_HEADING.matcher(wikiText).results().map(m -> m.group(2)).toList();
+        assertTrue(headings.size() >= 5, name + ": expected the fixture to have plain section headings, found " + headings);
 
-    private static void assertStartsWith(final String text, final String expected) {
-        assertTrue(text.startsWith(expected), () -> "expected to start with: " + expected + "\nbut starts with: "
-                + text.substring(0, Math.min(text.length(), expected.length() + 40)));
+        for (final PlainTextOptions options : List.of(PlainTextOptions.DEFAULT, PlainTextOptions.of("*", null, true))) {
+            final String text = new WikiTextParser(wikiText).getPlainText(options);
+            final List<String> leftovers = LEFTOVER_MARKUP.matcher(text).results().map(m -> m.group()).toList();
+            assertTrue(leftovers.isEmpty(), name + ": leftover markup " + leftovers);
+            final List<String> lines = List.of(text.split("\n"));
+            final List<String> missing = headings.stream().filter(h -> !lines.contains(h)).toList();
+            assertTrue(missing.isEmpty(), name + ": headings missing as lines of the text: " + missing);
+        }
     }
 
     @Test
     public void realArticle_apacheLucene() throws IOException {
-        final String t = article("Apache_Lucene");
-        // bold title and links in the lead
-        assertStartsWith(t,
-                "Apache Lucene is a free and open-source search engine software library, originally written in Java by Doug Cutting.");
-        // section heading on its own line
-        assertContains(t, "\nHistory\n");
-        // list item near the end, list marker stripped
-        assertContains(t, "\nOpenSearch – an open source enterprise search server based on a fork of Elasticsearch 7");
+        assertConvertsWholeArticle("Apache_Lucene");
     }
 
     @Test
     public void realArticle_germany() throws IOException {
-        final String t = article("Germany");
-        // lead after a large infobox and hatnote templates
-        assertStartsWith(t, "Germany, officially the Federal Republic of Germany, is a country in Western and Central Europe.");
-        // apostrophe inside a word
-        assertContains(t, "The nation's capital and most populous city is Berlin");
-        // prose from the Culture section, late in the article
-        assertContains(t, "The Berlin Fashion Week and the fashion trade fair Bread & Butter are held twice a year.");
+        assertConvertsWholeArticle("Germany");
     }
 
     @Test
     public void realArticle_albertEinstein() throws IOException {
-        final String t = article("Albert_Einstein");
-        // lead after nested {{efn|{{IPAc-en|...}}}} templates
-        assertContains(t, "was a German-born theoretical physicist best known for developing the theory of relativity.");
-        assertContains(t, "has been called \"the world's most famous equation\".");
-        // non-ASCII text from linked names
-        assertContains(t, "Born as a subject to the Kingdom of Württemberg, part of the German Empire");
-        // prose late in the article
-        assertContains(t, "In addition to longtime collaborators Leopold Infeld, Nathan Rosen, Peter Bergmann and others");
+        assertConvertsWholeArticle("Albert_Einstein");
     }
 }
