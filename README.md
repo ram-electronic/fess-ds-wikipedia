@@ -1,7 +1,8 @@
 # fess-ds-wikipedia (ram-electronic fork)
 
 A fork of [`codelibs/fess-ds-wikipedia`](https://github.com/codelibs/fess-ds-wikipedia)
-(forked at its `fess-ds-wikipedia-15.8.0` tag), patched to fix a
+(forked at its `fess-ds-wikipedia-15.8.0` tag, since merged with upstream
+`main` up to `9817f6d`), patched to fix a
 wikitext-to-plaintext extraction gap in `source=xml` crawls (MediaWiki's
 `dumpBackup.php`-style export, including official Wikimedia dumps like
 `*-pages-articles.xml.bz2`).
@@ -39,7 +40,8 @@ See `WikiTextParserTest.java` for the added test cases.
 ## Everything else
 
 Unmodified from upstream — same crawl config format, same field mapping,
-same `WikipediaDataStore` handler name. See
+same `WikipediaDataStore` handler name. The fork builds against Fess 15.8.0
+even though upstream `main` has moved its parent to `15.9.0-SNAPSHOT`. See
 [`codelibs/fess-ds-wikipedia`](https://github.com/codelibs/fess-ds-wikipedia)
 for general usage.
 
