@@ -289,6 +289,7 @@ public class WikiTextParserTest extends UnitDsTestCase {
         assertTrue(plainText.contains("entities"));
     }
 
+    @Test
     public void test_getPlainText_removesSectionHeaderMarkup() {
         final String wikiText = "Intro text\n== Hosting ==\nMore text\n=== Details ===\nEven more";
         final WikiTextParser parser = new WikiTextParser(wikiText);
@@ -298,6 +299,7 @@ public class WikiTextParserTest extends UnitDsTestCase {
         assertTrue(plainText.contains("Details"));
     }
 
+    @Test
     public void test_getPlainText_removesListMarkers() {
         final String wikiText = "== Hosting ==\n* VM at provider\n** Apache\n# Step one\n: Indented note";
         final WikiTextParser parser = new WikiTextParser(wikiText);
@@ -310,6 +312,7 @@ public class WikiTextParserTest extends UnitDsTestCase {
         assertTrue(plainText.contains("Indented note"));
     }
 
+    @Test
     public void test_getPlainText_convertsPipedLinksToDisplayText() {
         final String wikiText = "See [[Target Page|the target]] for details";
         final WikiTextParser parser = new WikiTextParser(wikiText);
