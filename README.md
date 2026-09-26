@@ -32,6 +32,12 @@ with `SwebleTextConverter` (adapted from Sweble's example `TextConverter`):
 - Drops templates (including nested and multi-line ones such as infoboxes),
   `<ref>` tags in all forms, HTML comments, images and their captions,
   categories, interlanguage links, magic words (`__TOC__`) and HTML tags.
+  Templates and captions can be kept per installation, see below.
+- Handles tag extensions explicitly: `<pre>`/`<source>`/`<syntaxhighlight>`
+  bodies are kept as literal text, `<poem>`/`<indicator>`/`<langconvert>`
+  bodies are parsed as wikitext (a poem keeps one line per line), and every
+  other extension (`<gallery>`, `<imagemap>`, `<inputbox>`, `<math>`,
+  `<templatestyles>`, …) is dropped, so its syntax never reaches the index.
 - Keeps apostrophes inside words (`Einstein's`), which the regex chain
   stripped along with `'''bold'''`/`''italic''` markup, and decodes entities
   to the characters MediaWiki displays (`&ndash;` → `–`, `&lt;tag&gt;` →
@@ -44,9 +50,41 @@ failed to. Parsing is roughly 5–7× slower than the regex chain (about
 the old regex stripping (`getPlainTextByRegex()`) is used as a fallback and a
 warning is logged.
 
-See `SweblePlainTextTest.java` for the test cases, including a comparison of
-both implementations on real articles (`src/test/resources/wikitext/`, CC
-BY-SA 4.0 Wikipedia revisions attributed in that folder's `README.md`).
+See `SweblePlainTextTest.java` for the test cases, including regression checks
+on real articles (`src/test/resources/wikitext/`, CC BY-SA 4.0 Wikipedia
+revisions attributed in that folder's `README.md`): no markup may survive, and
+prose from every part of the article must.
+
+### Keeping template text and captions
+
+Everything the converter drops is also unsearchable: Fess indexes and
+displays the same plain text (`content`/`digest`), and the raw wikitext isn't
+indexed. On many wikis, especially internal ones, templates carry real prose
+(notes, warnings, how-to boxes), and image captions describe the page. Two
+optional handler parameters, set in the crawl config next to `url` and
+`source`, keep that text for `source=xml` crawls:
+
+```
+keep_template_text=Note,Warning,Tip
+keep_captions=true
+```
+
+- **`keep_template_text`**: comma-separated names of templates whose argument
+  text is kept. `{{Note|Restart Apache after changing the config.|title=Careful}}`
+  then indexes "Restart Apache after changing the config. Careful". Argument
+  values are parsed as wikitext; parameter names (`title=`) are not kept. Other
+  templates stay dropped, including ones nested inside a kept template's
+  arguments, unless they're listed too. Names match the way MediaWiki resolves
+  them: the first letter is case-insensitive, `_` equals a space, and a
+  `Template:` prefix is optional.
+- **`keep_captions`**: `true` keeps the captions of images
+  (`[[File:x.jpg|thumb|Caption]]` → `Caption`) and galleries. Options such as
+  `thumb` and `alt=` text are not kept.
+
+Both default to keeping nothing, so the output is unchanged unless you opt in.
+They don't affect `source=cirrus`, whose dumps already carry MediaWiki's own
+rendered text. Existing pages pick the change up on the next crawl, since every
+crawl re-reads the whole dump.
 
 ## Everything else
 

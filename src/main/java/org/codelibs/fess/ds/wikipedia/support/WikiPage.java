@@ -146,6 +146,17 @@ public class WikiPage {
     }
 
     /**
+     * Returns the plain text content like {@link #getText()}, keeping the otherwise dropped text
+     * that the options select.
+     *
+     * @param options which templates and captions keep their text
+     * @return plain text stripped of all wiki formatting.
+     */
+    public String getText(final PlainTextOptions options) {
+        return wikiTextParser.getPlainText(options);
+    }
+
+    /**
      * Returns a list of categories the page belongs to.
      *
      * @return a list of categories the page belongs to, null if this a redirection/disambiguation page

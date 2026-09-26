@@ -161,6 +161,39 @@ public class SweblePlainTextTest {
         assertEquals("a b c – d", sweble("__NOTOC__ a b&nbsp;c &ndash; d"));
     }
 
+    // ===== Options: keep_template_text / keep_captions =====
+
+    private static String sweble(final String wikiText, final String keepTemplateText, final boolean keepCaptions) {
+        return new WikiTextParser(wikiText).getPlainText(PlainTextOptions.of(keepTemplateText, keepCaptions));
+    }
+
+    @Test
+    public void keptTemplateContributesItsArgumentText() {
+        final String w = "Before {{Note|Restart [[Apache|the web server]] after '''changes'''.|title=Careful}} after";
+        assertEquals("Before after", sweble(w));
+        // argument values are parsed as wikitext; the parameter name "title=" is not kept
+        assertEquals("Before Restart the web server after changes. Careful after", sweble(w, "note", false));
+        // other templates are still dropped, including ones nested in a kept template's argument
+        assertEquals("A Keep this B", sweble("A {{Note|Keep {{nowrap|this}}}}{{Infobox|name=X}} B", "Note, Nowrap", false));
+        assertEquals("A Keep B", sweble("A {{Note|Keep {{Infobox|name=X}}}} B", "Note", false));
+    }
+
+    @Test
+    public void captionsAreKeptOnlyWhenEnabled() {
+        final String w = "Intro\n[[File:X.jpg|thumb|upright=1.2|alt=Alt text|A caption with [[Link|a link]]]]\nOutro";
+        assertEquals("Intro\nOutro", sweble(w));
+        // options and alt text are not prose; only the caption is kept
+        assertEquals("Intro\nA caption with a link\nOutro", sweble(w, null, true));
+    }
+
+    @Test
+    public void galleryCaptionsAreKeptOnlyWhenEnabled() {
+        final String w =
+                "A\n<gallery>\nFile:Berlin.jpg|The [[Reichstag]] at night\nBonn.jpg|alt=x|Bonn from '''above'''\nNoCaption.jpg\n</gallery>\nB";
+        assertEquals("A B", sweble(w));
+        assertEquals("A\nThe Reichstag at night\nBonn from above\nB", sweble(w, null, true));
+    }
+
     // ===== Tag extensions =====
 
     @Test

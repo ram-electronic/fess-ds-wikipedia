@@ -15,6 +15,7 @@
  */
 package org.codelibs.fess.ds.wikipedia;
 
+import org.codelibs.fess.ds.wikipedia.support.PlainTextOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
@@ -198,6 +199,29 @@ public class WikipediaDataStoreTest extends UnitDsTestCase {
         final DataStoreParams params = new DataStoreParams();
         params.put("user_agent", "MyBot/1.0 (+https://example.com/bot)");
         assertEquals("MyBot/1.0 (+https://example.com/bot)", method.invoke(dataStore, params));
+    }
+
+    @Test
+    public void test_getPlainTextOptions_defaultsToKeepingNothing() throws Exception {
+        final Method method = WikipediaDataStore.class.getDeclaredMethod("getPlainTextOptions", DataStoreParams.class);
+        method.setAccessible(true);
+        final PlainTextOptions options = (PlainTextOptions) method.invoke(dataStore, new DataStoreParams());
+        assertFalse(options.keepsTemplate("Note"));
+        assertFalse(options.keepsCaptions());
+    }
+
+    @Test
+    public void test_getPlainTextOptions_readsTheHandlerParameters() throws Exception {
+        final Method method = WikipediaDataStore.class.getDeclaredMethod("getPlainTextOptions", DataStoreParams.class);
+        method.setAccessible(true);
+        final DataStoreParams params = new DataStoreParams();
+        params.put("keep_template_text", "Note,Warning");
+        params.put("keep_captions", " true ");
+        final PlainTextOptions options = (PlainTextOptions) method.invoke(dataStore, params);
+        assertTrue(options.keepsTemplate("Note"));
+        assertTrue(options.keepsTemplate("warning"));
+        assertFalse(options.keepsTemplate("Infobox"));
+        assertTrue(options.keepsCaptions());
     }
 
     @Test
