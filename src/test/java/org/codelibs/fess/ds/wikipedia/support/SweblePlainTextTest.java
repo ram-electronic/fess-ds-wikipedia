@@ -30,8 +30,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Evaluates the Sweble-based {@link WikiTextParser#getPlainText()} against the
- * previous regex implementation. Unlike the other tests in this module these use
- * {@code @Test}, so the JUnit 5 engine actually discovers them.
+ * previous regex implementation, which is kept as the fallback.
  */
 public class SweblePlainTextTest {
 

@@ -70,9 +70,9 @@ for general usage.
 
 ## Testing
 
-`mvn test` runs all tests. The tests inherited from upstream are JUnit 3
-style methods, and without `@Test` the JUnit 5 engine never discovered them,
-so upstream's build ran none. This fork adds the annotations.
+`mvn test` runs all tests. Surefire's `failIfNoTests` (from upstream) fails
+the build if none are discovered, so a test method missing `@Test` can't
+silently turn the suite into a no-op again.
 
 ## Releases
 
