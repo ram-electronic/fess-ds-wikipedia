@@ -84,12 +84,14 @@ import de.fau.cs.osr.ptk.common.AstVisitor;
  * Code bodies are kept as literal text, prose bodies are parsed as wikitext, and every other
  * extension is dropped, so an extension's own syntax never reaches the output.
  * <p>
- * {@link PlainTextOptions} can keep the argument text of selected templates and the captions
- * of images and galleries, which are otherwise dropped.
+ * The argument text of templates and the captions of images and galleries are kept, since
+ * text that is dropped can't be found; {@link PlainTextOptions} can drop them.
  */
 public class SwebleTextConverter extends AstVisitor<WtNode> {
 
     private static final Pattern WS = Pattern.compile("\\s+");
+
+    private static final String CLOSING_PUNCTUATION = ",.;:!?)]}%»”’";
 
     /** Tag extensions whose body is literal text (code), kept as is. */
     private static final Set<String> LITERAL_TAG_EXTENSIONS = Set.of("pre", "source", "syntaxhighlight");
@@ -114,6 +116,13 @@ public class SwebleTextConverter extends AstVisitor<WtNode> {
 
     private boolean needSpace;
 
+    /**
+     * A space requested by removed or replaced markup (a template, a dropped tag extension): it
+     * separates words but is left out before closing punctuation, so "Deutschland}};" doesn't
+     * become "Deutschland ;".
+     */
+    private boolean softSpace;
+
     /** Paragraph breaks inside table cells would split a row over several lines. */
     private int cellDepth;
 
@@ -130,7 +139,7 @@ public class SwebleTextConverter extends AstVisitor<WtNode> {
      * Parses wikitext and converts it to plain text.
      *
      * @param config the wiki configuration
-     * @param options which otherwise dropped text to keep
+     * @param options which template text and captions to drop
      * @param wikiText the wikitext to convert
      * @return the plain text
      * @throws EngineException if Sweble fails to process the text
@@ -148,6 +157,7 @@ public class SwebleTextConverter extends AstVisitor<WtNode> {
         sb = new StringBuilder();
         needNewline = false;
         needSpace = false;
+        softSpace = false;
         cellDepth = 0;
         return super.before(node);
     }
@@ -321,7 +331,7 @@ public class SwebleTextConverter extends AstVisitor<WtNode> {
         final boolean keptGallery = "gallery".equals(name) && options.keepsCaptions();
         if (!n.hasBody() || !keptGallery && !LITERAL_TAG_EXTENSIONS.contains(name) && !WIKITEXT_TAG_EXTENSIONS.contains(name)) {
             // keep the neighbours apart, as for a dropped template
-            needSpace = true;
+            softSpace = true;
             return;
         }
         final String body = n.getBody().getContent();
@@ -363,16 +373,26 @@ public class SwebleTextConverter extends AstVisitor<WtNode> {
 
     public void visit(final WtTemplate n) {
         // an inline template such as {{snd}} usually renders as separator text; don't glue its neighbours
-        needSpace = true;
+        softSpace = true;
         if (!n.getName().isResolved() || !options.keepsTemplate(n.getName().getAsString())) {
             return;
+        }
+        // A template on its own line (infobox, maintenance tag, short description) is a block of
+        // its own; one inside a sentence ({{lang|de|Haus}}) continues the line.
+        final boolean block = n.isPrecededByNewline() || WtRtDataPrinter.print(n).indexOf('\n') >= 0;
+        if (block) {
+            newline();
         }
         // Argument values are unparsed wikitext; parameter names ("title=") are not prose.
         for (final WtNode arg : n.getArgs()) {
             if (arg instanceof final WtTemplateArgument argument) {
-                writeWikitext(WtRtDataPrinter.print(argument.getValue()), false);
                 needSpace = true;
+                writeWikitext(WtRtDataPrinter.print(argument.getValue()), false);
             }
+        }
+        softSpace = true;
+        if (block) {
+            newline();
         }
     }
 
@@ -476,12 +496,13 @@ public class SwebleTextConverter extends AstVisitor<WtNode> {
         if (sb.length() > 0) {
             if (needNewline) {
                 sb.append('\n');
-            } else if (needSpace || leadingWs) {
+            } else if (needSpace || leadingWs || softSpace && CLOSING_PUNCTUATION.indexOf(collapsed.charAt(0)) < 0) {
                 sb.append(' ');
             }
         }
         needNewline = false;
         needSpace = trailingWs;
+        softSpace = false;
         sb.append(collapsed);
     }
 }

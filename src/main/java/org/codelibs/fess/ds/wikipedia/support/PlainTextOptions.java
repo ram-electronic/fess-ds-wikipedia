@@ -21,45 +21,66 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Controls which otherwise dropped wikitext keeps its text in {@link WikiTextParser#getPlainText(PlainTextOptions)}.
+ * Controls which template text and captions {@link WikiTextParser#getPlainText(PlainTextOptions)}
+ * drops.
  * <p>
- * By default templates, image captions and gallery captions are dropped. Installations whose
- * wiki keeps prose in templates (notes, warnings, how-to boxes) or captions can opt in to
- * indexing that text through the {@code keep_template_text} and {@code keep_captions} handler
+ * Text that is dropped can't be found, so by default the argument text of every template and
+ * every image and gallery caption is kept. Installations filter out what they consider noise
+ * through the {@code drop_templates}, {@code keep_templates} and {@code drop_captions} handler
  * parameters.
  * </p>
  */
 public final class PlainTextOptions {
 
-    /** Drops all templates and captions. */
-    public static final PlainTextOptions DEFAULT = new PlainTextOptions(Set.of(), false);
+    /** Keeps the text of all templates and captions. */
+    public static final PlainTextOptions DEFAULT = new PlainTextOptions(Set.of(), false, Set.of(), false);
+
+    /** The {@code drop_templates} value that drops every template not listed in {@code keep_templates}. */
+    public static final String ALL = "*";
 
     private static final String TEMPLATE_NAMESPACE = "template:";
 
+    private final Set<String> droppedTemplates;
+
+    private final boolean dropAllTemplates;
+
     private final Set<String> keptTemplates;
 
-    private final boolean keepCaptions;
+    private final boolean dropCaptions;
 
-    private PlainTextOptions(final Set<String> keptTemplates, final boolean keepCaptions) {
+    private PlainTextOptions(final Set<String> droppedTemplates, final boolean dropAllTemplates, final Set<String> keptTemplates,
+            final boolean dropCaptions) {
+        this.droppedTemplates = droppedTemplates;
+        this.dropAllTemplates = dropAllTemplates;
         this.keptTemplates = keptTemplates;
-        this.keepCaptions = keepCaptions;
+        this.dropCaptions = dropCaptions;
     }
 
     /**
      * Creates options from the handler parameter values.
      *
-     * @param keepTemplateText comma-separated names of templates whose argument text is kept,
-     *        such as {@code Note,Warning}; null or blank keeps none
-     * @param keepCaptions whether image and gallery captions are kept
+     * @param dropTemplates comma-separated names of templates whose text is dropped, such as
+     *        {@code Cite web,Cite news}, or {@code *} for all; null or blank drops none
+     * @param keepTemplates comma-separated names of templates whose text is kept even though
+     *        {@code dropTemplates} matches them, which turns {@code *} into an allowlist; null
+     *        or blank lists none
+     * @param dropCaptions whether image and gallery captions are dropped
      * @return the options
      */
-    public static PlainTextOptions of(final String keepTemplateText, final boolean keepCaptions) {
-        final Set<String> templates = keepTemplateText == null ? Set.of()
-                : Arrays.stream(keepTemplateText.split(","))
-                        .map(PlainTextOptions::normalizeTemplateName)
-                        .filter(name -> !name.isEmpty())
-                        .collect(Collectors.toUnmodifiableSet());
-        return new PlainTextOptions(templates, keepCaptions);
+    public static PlainTextOptions of(final String dropTemplates, final String keepTemplates, final boolean dropCaptions) {
+        final Set<String> dropped = parseNames(dropTemplates);
+        final boolean dropAll = dropped.contains(ALL);
+        return new PlainTextOptions(dropAll ? Set.of() : dropped, dropAll, parseNames(keepTemplates), dropCaptions);
+    }
+
+    private static Set<String> parseNames(final String names) {
+        if (names == null) {
+            return Set.of();
+        }
+        return Arrays.stream(names.split(","))
+                .map(name -> ALL.equals(name.trim()) ? ALL : normalizeTemplateName(name))
+                .filter(name -> !name.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /**
@@ -69,7 +90,11 @@ public final class PlainTextOptions {
      * @return true if the template's argument text is kept
      */
     public boolean keepsTemplate(final String templateName) {
-        return !keptTemplates.isEmpty() && keptTemplates.contains(normalizeTemplateName(templateName));
+        final String name = normalizeTemplateName(templateName);
+        if (keptTemplates.contains(name)) {
+            return true;
+        }
+        return !dropAllTemplates && !droppedTemplates.contains(name);
     }
 
     /**
@@ -78,7 +103,7 @@ public final class PlainTextOptions {
      * @return true if captions are kept
      */
     public boolean keepsCaptions() {
-        return keepCaptions;
+        return !dropCaptions;
     }
 
     /**

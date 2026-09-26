@@ -202,12 +202,13 @@ public class WikipediaDataStoreTest extends UnitDsTestCase {
     }
 
     @Test
-    public void test_getPlainTextOptions_defaultsToKeepingNothing() throws Exception {
+    public void test_getPlainTextOptions_defaultsToKeepingEverything() throws Exception {
         final Method method = WikipediaDataStore.class.getDeclaredMethod("getPlainTextOptions", DataStoreParams.class);
         method.setAccessible(true);
         final PlainTextOptions options = (PlainTextOptions) method.invoke(dataStore, new DataStoreParams());
-        assertFalse(options.keepsTemplate("Note"));
-        assertFalse(options.keepsCaptions());
+        assertTrue(options.keepsTemplate("Note"));
+        assertTrue(options.keepsTemplate("Cite web"));
+        assertTrue(options.keepsCaptions());
     }
 
     @Test
@@ -215,13 +216,14 @@ public class WikipediaDataStoreTest extends UnitDsTestCase {
         final Method method = WikipediaDataStore.class.getDeclaredMethod("getPlainTextOptions", DataStoreParams.class);
         method.setAccessible(true);
         final DataStoreParams params = new DataStoreParams();
-        params.put("keep_template_text", "Note,Warning");
-        params.put("keep_captions", " true ");
+        params.put("drop_templates", "*");
+        params.put("keep_templates", "Note,Warning");
+        params.put("drop_captions", " true ");
         final PlainTextOptions options = (PlainTextOptions) method.invoke(dataStore, params);
         assertTrue(options.keepsTemplate("Note"));
         assertTrue(options.keepsTemplate("warning"));
         assertFalse(options.keepsTemplate("Infobox"));
-        assertTrue(options.keepsCaptions());
+        assertFalse(options.keepsCaptions());
     }
 
     @Test

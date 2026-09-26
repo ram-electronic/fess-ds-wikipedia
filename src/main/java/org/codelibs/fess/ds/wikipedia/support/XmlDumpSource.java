@@ -46,7 +46,7 @@ public class XmlDumpSource implements DumpSource {
     }
 
     /**
-     * Sets which otherwise dropped text the plain-text content keeps.
+     * Sets which template text and captions the plain-text content drops.
      *
      * @param plainTextOptions the options
      */
@@ -74,7 +74,7 @@ public class XmlDumpSource implements DumpSource {
      * Converts a parsed page into the format-independent document.
      *
      * @param page the parsed page
-     * @param plainTextOptions which otherwise dropped text the content keeps
+     * @param plainTextOptions which template text and captions the content drops
      * @return the document
      */
     static WikiDocument toDocument(final WikiPage page, final PlainTextOptions plainTextOptions) {

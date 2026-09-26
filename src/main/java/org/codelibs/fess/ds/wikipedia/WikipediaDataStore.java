@@ -77,13 +77,20 @@ public class WikipediaDataStore extends AbstractDataStore {
     protected static final String USER_AGENT_PARAM = "user_agent";
 
     /**
-     * The parameter name for the comma-separated templates whose argument text is kept in the
-     * plain-text content of {@code source=xml} pages, such as {@code Note,Warning}.
+     * The parameter name for the comma-separated templates whose argument text is dropped from
+     * the plain-text content of {@code source=xml} pages, such as {@code Cite web,Cite news}, or
+     * {@code *} for all templates. By default the text of every template is kept.
      */
-    protected static final String KEEP_TEMPLATE_TEXT_PARAM = "keep_template_text";
+    protected static final String DROP_TEMPLATES_PARAM = "drop_templates";
 
-    /** The parameter name for keeping image and gallery captions in {@code source=xml} content. */
-    protected static final String KEEP_CAPTIONS_PARAM = "keep_captions";
+    /**
+     * The parameter name for the comma-separated templates whose argument text is kept although
+     * {@link #DROP_TEMPLATES_PARAM} matches them; with {@code drop_templates=*} this is an allowlist.
+     */
+    protected static final String KEEP_TEMPLATES_PARAM = "keep_templates";
+
+    /** The parameter name for dropping image and gallery captions from {@code source=xml} content. */
+    protected static final String DROP_CAPTIONS_PARAM = "drop_captions";
 
     /**
      * Used only when both the {@link #USER_AGENT_PARAM} parameter and the Fess crawler
@@ -247,15 +254,16 @@ public class WikipediaDataStore extends AbstractDataStore {
     }
 
     /**
-     * Returns which otherwise dropped text the plain-text content of XML pages keeps.
+     * Returns which template text and captions the plain-text content of XML pages drops.
      * A CirrusSearch dump carries MediaWiki's own rendered text, so it is not affected.
      *
      * @param paramMap the data store parameters
-     * @return the options from {@link #KEEP_TEMPLATE_TEXT_PARAM} and {@link #KEEP_CAPTIONS_PARAM}
+     * @return the options from {@link #DROP_TEMPLATES_PARAM}, {@link #KEEP_TEMPLATES_PARAM} and
+     *         {@link #DROP_CAPTIONS_PARAM}
      */
     protected PlainTextOptions getPlainTextOptions(final DataStoreParams paramMap) {
-        return PlainTextOptions.of(paramMap.getAsString(KEEP_TEMPLATE_TEXT_PARAM),
-                Boolean.parseBoolean(paramMap.getAsString(KEEP_CAPTIONS_PARAM, "false").trim()));
+        return PlainTextOptions.of(paramMap.getAsString(DROP_TEMPLATES_PARAM), paramMap.getAsString(KEEP_TEMPLATES_PARAM),
+                Boolean.parseBoolean(paramMap.getAsString(DROP_CAPTIONS_PARAM, "false").trim()));
     }
 
     /** The parameter name selecting which dump format to read. */

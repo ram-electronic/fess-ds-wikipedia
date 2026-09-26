@@ -169,10 +169,10 @@ public class WikiTextParser {
     }
 
     /**
-     * Extracts the plain text like {@link #getPlainText()}, keeping the otherwise dropped text
-     * that the options select.
+     * Extracts the plain text like {@link #getPlainText()}, dropping the template
+     * text and captions that the options select.
      *
-     * @param options which templates and captions keep their text
+     * @param options which template text and captions to drop
      * @return The plain text representation of the wiki content.
      */
     public String getPlainText(final PlainTextOptions options) {

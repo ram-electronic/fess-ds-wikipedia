@@ -83,8 +83,8 @@ public class XmlDumpSourceTest extends UnitDsTestCase {
 
     @Test
     public void test_plainTextOptions_reachTheDocumentContent() {
-        assertEquals("Our servers.", parse("wiki-options.xml").get(0).getContent());
-        assertEquals("Our servers. Restart Apache after changing the config.\nThe rack in room 2",
-                parse("wiki-options.xml", PlainTextOptions.of("Note", true)).get(0).getContent());
+        assertEquals("Our servers.\nRestart Apache after changing the config.\nThe rack in room 2",
+                parse("wiki-options.xml").get(0).getContent());
+        assertEquals("Our servers.", parse("wiki-options.xml", PlainTextOptions.of("Note", null, true)).get(0).getContent());
     }
 }

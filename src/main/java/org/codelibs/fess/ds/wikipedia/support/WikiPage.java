@@ -146,10 +146,10 @@ public class WikiPage {
     }
 
     /**
-     * Returns the plain text content like {@link #getText()}, keeping the otherwise dropped text
-     * that the options select.
+     * Returns the plain text content like {@link #getText()}, dropping the template
+     * text and captions that the options select.
      *
-     * @param options which templates and captions keep their text
+     * @param options which template text and captions to drop
      * @return plain text stripped of all wiki formatting.
      */
     public String getText(final PlainTextOptions options) {

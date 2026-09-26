@@ -24,30 +24,48 @@ import org.junit.jupiter.api.Test;
 public class PlainTextOptionsTest {
 
     @Test
-    public void defaultKeepsNothing() {
-        assertFalse(PlainTextOptions.DEFAULT.keepsTemplate("Note"));
-        assertFalse(PlainTextOptions.DEFAULT.keepsCaptions());
+    public void defaultKeepsEverything() {
+        assertTrue(PlainTextOptions.DEFAULT.keepsTemplate("Note"));
+        assertTrue(PlainTextOptions.DEFAULT.keepsTemplate("Cite web"));
+        assertTrue(PlainTextOptions.DEFAULT.keepsCaptions());
+        assertTrue(PlainTextOptions.of(null, null, false).keepsTemplate("Note"));
+        assertTrue(PlainTextOptions.of(" , ", "", false).keepsTemplate("Note"));
     }
 
     @Test
-    public void templateNamesMatchLikeMediaWiki() {
-        final PlainTextOptions options = PlainTextOptions.of(" note , Template:How_to  step,", true);
-        // first letter case-insensitive, "_" is a space, the Template: prefix is optional
+    public void dropTemplatesIsABlocklist() {
+        final PlainTextOptions options = PlainTextOptions.of("Cite web, cite_news", null, true);
+        assertFalse(options.keepsTemplate("Cite web"));
+        assertFalse(options.keepsTemplate("Cite news"));
         assertTrue(options.keepsTemplate("Note"));
-        assertTrue(options.keepsTemplate("note"));
-        assertTrue(options.keepsTemplate("How to step"));
-        assertTrue(options.keepsTemplate("how_to_step"));
-        assertTrue(options.keepsTemplate("Template:How to  step"));
-        // the rest of the name stays case-sensitive, as in MediaWiki
-        assertFalse(options.keepsTemplate("NOTE"));
-        assertFalse(options.keepsTemplate("Warning"));
+        assertFalse(options.keepsCaptions());
+    }
+
+    @Test
+    public void dropAllWithKeepTemplatesIsAnAllowlist() {
+        final PlainTextOptions options = PlainTextOptions.of(" * ", "Note,Warning", false);
+        assertTrue(options.keepsTemplate("Note"));
+        assertTrue(options.keepsTemplate("warning"));
+        assertFalse(options.keepsTemplate("Infobox"));
         assertTrue(options.keepsCaptions());
     }
 
     @Test
-    public void blankOrMissingListKeepsNoTemplate() {
-        assertFalse(PlainTextOptions.of(null, false).keepsTemplate("Note"));
-        assertFalse(PlainTextOptions.of(" , ", false).keepsTemplate(""));
+    public void keepTemplatesWinsOverAnExplicitDrop() {
+        assertTrue(PlainTextOptions.of("Note", "Note", false).keepsTemplate("Note"));
+    }
+
+    @Test
+    public void templateNamesMatchLikeMediaWiki() {
+        final PlainTextOptions options = PlainTextOptions.of(" note , Template:How_to  step,", null, false);
+        // first letter case-insensitive, "_" is a space, the Template: prefix is optional
+        assertFalse(options.keepsTemplate("Note"));
+        assertFalse(options.keepsTemplate("note"));
+        assertFalse(options.keepsTemplate("How to step"));
+        assertFalse(options.keepsTemplate("how_to_step"));
+        assertFalse(options.keepsTemplate("Template:How to  step"));
+        // the rest of the name stays case-sensitive, as in MediaWiki
+        assertTrue(options.keepsTemplate("NOTE"));
     }
 
     @Test
