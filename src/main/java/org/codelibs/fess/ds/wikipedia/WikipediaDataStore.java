@@ -278,13 +278,10 @@ public class WikipediaDataStore extends AbstractDataStore {
     private static final Pattern WIKI_NAME_PATTERN = Pattern.compile("(?:^|[/=])([a-z][a-z-]{1,11})wiki[-_.]");
 
     /**
-     * The escapes MediaWiki's own wfUrlencode() undoes, mapped to the literal characters its page
-     * URLs keep ({@code *} needs no entry, URLEncoder already leaves it alone). The order they are
-     * applied in doesn't matter: no replacement is a {@code %}, so none can form a new escape.
+     * The characters MediaWiki's own wfUrlencode() keeps literal in page URLs ({@code *} is left
+     * out, URLEncoder already leaves it alone).
      */
-    private static final Map<String, String> MEDIAWIKI_UNESCAPES =
-            Map.ofEntries(Map.entry("%3B", ";"), Map.entry("%40", "@"), Map.entry("%24", "$"), Map.entry("%21", "!"), Map.entry("%28", "("),
-                    Map.entry("%29", ")"), Map.entry("%2C", ","), Map.entry("%2F", "/"), Map.entry("%7E", "~"), Map.entry("%3A", ":"));
+    private static final String MEDIAWIKI_LITERALS = ";@$!(),/~:";
 
     /**
      * Returns whether the location looks like a CirrusSearch index dump.
@@ -462,15 +459,17 @@ public class WikipediaDataStore extends AbstractDataStore {
      * become underscores, the result is percent-encoded, and then the characters MediaWiki leaves
      * literal ({@code ; @ $ ! * ( ) , / ~ :}) are unescaped again. Without that, a subpage such as
      * "Foo/Bar" would link to "Foo%2FBar", which Apache (MediaWiki's usual server) rejects with a
-     * 404 by default.
+     * 404 by default. Each escape is derived with the same URLEncoder, so it matches exactly, and
+     * the order doesn't matter: no replacement is a {@code %}, so none can form a new escape.
      *
      * @param title the stripped title
      * @return the encoded title
      */
     private String encodeTitle(final String title) {
         String encoded = URLEncoder.encode(title.replace(' ', '_'), Constants.CHARSET_UTF_8);
-        for (final Map.Entry<String, String> unescape : MEDIAWIKI_UNESCAPES.entrySet()) {
-            encoded = encoded.replace(unescape.getKey(), unescape.getValue());
+        for (final char literal : MEDIAWIKI_LITERALS.toCharArray()) {
+            final String c = String.valueOf(literal);
+            encoded = encoded.replace(URLEncoder.encode(c, Constants.CHARSET_UTF_8), c);
         }
         return encoded;
     }
