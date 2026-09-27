@@ -278,6 +278,15 @@ public class WikipediaDataStore extends AbstractDataStore {
     private static final Pattern WIKI_NAME_PATTERN = Pattern.compile("(?:^|[/=])([a-z][a-z-]{1,11})wiki[-_.]");
 
     /**
+     * The escapes MediaWiki's own wfUrlencode() undoes, so its page URLs keep these characters
+     * literal ({@code *} needs none, URLEncoder already leaves it alone).
+     */
+    private static final String[] MEDIAWIKI_ESCAPES = { "%3B", "%40", "%24", "%21", "%28", "%29", "%2C", "%2F", "%7E", "%3A" };
+
+    /** The literal characters {@link #MEDIAWIKI_ESCAPES} turn back into, in the same order. */
+    private static final String[] MEDIAWIKI_LITERALS = { ";", "@", "$", "!", "(", ")", ",", "/", "~", ":" };
+
+    /**
      * Returns whether the location looks like a CirrusSearch index dump.
      *
      * @param location the dump URL or path
@@ -449,13 +458,17 @@ public class WikipediaDataStore extends AbstractDataStore {
     }
 
     /**
-     * Encodes a (already-stripped) title for use in an article URL: spaces become underscores,
-     * then the result is percent-encoded.
+     * Encodes a (already-stripped) title for use in an article URL the way MediaWiki does: spaces
+     * become underscores, the result is percent-encoded, and then the characters MediaWiki leaves
+     * literal ({@code ; @ $ ! * ( ) , / ~ :}) are unescaped again. Without that, a subpage such as
+     * "Foo/Bar" would link to "Foo%2FBar", which Apache (MediaWiki's usual server) rejects with a
+     * 404 by default.
      *
      * @param title the stripped title
      * @return the encoded title
      */
     private String encodeTitle(final String title) {
-        return URLEncoder.encode(title.replace(' ', '_'), Constants.CHARSET_UTF_8);
+        return StringUtils.replaceEach(URLEncoder.encode(title.replace(' ', '_'), Constants.CHARSET_UTF_8), MEDIAWIKI_ESCAPES,
+                MEDIAWIKI_LITERALS);
     }
 }

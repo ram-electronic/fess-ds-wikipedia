@@ -101,10 +101,25 @@ These parameters don't affect `source=cirrus`, whose dumps already carry
 MediaWiki's own rendered text. Existing pages pick up a change on the next
 crawl, since every crawl re-reads the whole dump.
 
+### Article URLs
+
+`encodedTitle`, and the `url` derived from it for Wikipedia dumps, are
+encoded the way MediaWiki encodes its own page URLs (`wfUrlencode()`):
+spaces become `_`, and after percent-encoding, `; @ $ ! * ( ) , / ~ :` are
+kept literal. So `Talk:Mercury (planet)/Archive 1` becomes
+`Talk:Mercury_(planet)/Archive_1`, not
+`Talk%3AMercury_%28planet%29%2FArchive_1`. This matters most for subpages:
+Apache, MediaWiki's usual server, answers a `%2F` in the path with a 404 by
+default. `& ? # % + = ' "` and non-ASCII characters stay percent-encoded, as
+in MediaWiki. For a private wiki, a handler script such as
+`url="https://wiki.example.com/index.php/" + encodedTitle` needs no
+further fixing up.
+
 ## Everything else
 
-Unmodified from upstream — same crawl config format, same field mapping,
-same `WikipediaDataStore` handler name. The fork builds against Fess 15.8.0
+Unmodified from upstream — same crawl config format, same field names
+(only `encodedTitle`/`url` values differ, see above), same
+`WikipediaDataStore` handler name. The fork builds against Fess 15.8.0
 even though upstream `main` has moved its parent to `15.9.0-SNAPSHOT`. See
 [`codelibs/fess-ds-wikipedia`](https://github.com/codelibs/fess-ds-wikipedia)
 for general usage.
