@@ -278,13 +278,13 @@ public class WikipediaDataStore extends AbstractDataStore {
     private static final Pattern WIKI_NAME_PATTERN = Pattern.compile("(?:^|[/=])([a-z][a-z-]{1,11})wiki[-_.]");
 
     /**
-     * The escapes MediaWiki's own wfUrlencode() undoes, so its page URLs keep these characters
-     * literal ({@code *} needs none, URLEncoder already leaves it alone).
+     * The escapes MediaWiki's own wfUrlencode() undoes, mapped to the literal characters its page
+     * URLs keep ({@code *} needs no entry, URLEncoder already leaves it alone). The order they are
+     * applied in doesn't matter: no replacement is a {@code %}, so none can form a new escape.
      */
-    private static final String[] MEDIAWIKI_ESCAPES = { "%3B", "%40", "%24", "%21", "%28", "%29", "%2C", "%2F", "%7E", "%3A" };
-
-    /** The literal characters {@link #MEDIAWIKI_ESCAPES} turn back into, in the same order. */
-    private static final String[] MEDIAWIKI_LITERALS = { ";", "@", "$", "!", "(", ")", ",", "/", "~", ":" };
+    private static final Map<String, String> MEDIAWIKI_UNESCAPES =
+            Map.ofEntries(Map.entry("%3B", ";"), Map.entry("%40", "@"), Map.entry("%24", "$"), Map.entry("%21", "!"), Map.entry("%28", "("),
+                    Map.entry("%29", ")"), Map.entry("%2C", ","), Map.entry("%2F", "/"), Map.entry("%7E", "~"), Map.entry("%3A", ":"));
 
     /**
      * Returns whether the location looks like a CirrusSearch index dump.
@@ -468,7 +468,10 @@ public class WikipediaDataStore extends AbstractDataStore {
      * @return the encoded title
      */
     private String encodeTitle(final String title) {
-        return StringUtils.replaceEach(URLEncoder.encode(title.replace(' ', '_'), Constants.CHARSET_UTF_8), MEDIAWIKI_ESCAPES,
-                MEDIAWIKI_LITERALS);
+        String encoded = URLEncoder.encode(title.replace(' ', '_'), Constants.CHARSET_UTF_8);
+        for (final Map.Entry<String, String> unescape : MEDIAWIKI_UNESCAPES.entrySet()) {
+            encoded = encoded.replace(unescape.getKey(), unescape.getValue());
+        }
+        return encoded;
     }
 }
