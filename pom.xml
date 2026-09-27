@@ -50,13 +50,9 @@
 				<groupId>net.revelc.code.formatter</groupId>
 				<artifactId>formatter-maven-plugin</artifactId>
 			</plugin>
-			<!-- The release ships one jar that is dropped into Fess, so Sweble and its
-			     transitive dependencies are bundled (and relocated to avoid clashing with
-			     Fess's own copies, e.g. jaxb/commons-collections4). -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.6.0</version>
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -67,35 +63,47 @@
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<artifactSet>
 								<includes>
-									<include>io.github.rzo1.org.sweble.wikitext:*</include>
-									<include>de.fau.cs.osr.utils:*</include>
-									<include>de.fau.cs.osr.ptk:*</include>
+									<include>io.github.rzo1.org.sweble.wikitext:swc-engine</include>
+									<include>io.github.rzo1.org.sweble.wikitext:swc-parser-lazy</include>
+									<include>de.fau.cs.osr.utils:utils</include>
+									<include>de.fau.cs.osr.ptk:ptk-common</include>
 									<include>xtc:rats-runtime</include>
 									<include>org.apache.commons:commons-collections4</include>
 									<include>jakarta.xml.bind:jakarta.xml.bind-api</include>
-									<include>jakarta.activation:jakarta.activation-api</include>
-									<include>org.glassfish.jaxb:*</include>
-									<include>org.eclipse.angus:angus-activation</include>
-									<include>com.sun.istack:istack-commons-runtime</include>
 								</includes>
 							</artifactSet>
-							<relocations>
-								<relocation>
-									<pattern>org.apache.commons.collections4</pattern>
-									<shadedPattern>org.codelibs.fess.ds.wikipedia.shaded.collections4</shadedPattern>
-								</relocation>
-							</relocations>
 							<filters>
 								<filter>
 									<artifact>*:*</artifact>
 									<excludes>
+										<exclude>META-INF/MANIFEST.MF</exclude>
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
 										<exclude>module-info.class</exclude>
+										<exclude>META-INF/versions/*/module-info.class</exclude>
+									</excludes>
+								</filter>
+								<!-- Sweble only needs the JAXB API classes to load its configuration
+								     classes; nothing looks up a JAXB implementation through them. -->
+								<filter>
+									<artifact>jakarta.xml.bind:jakarta.xml.bind-api</artifact>
+									<excludes>
+										<exclude>META-INF/services/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
+							<relocations>
+								<relocation>
+									<pattern>org.apache.commons.collections4</pattern>
+									<shadedPattern>org.codelibs.fess.ds.wikipedia.collections4</shadedPattern>
+								</relocation>
+								<!-- Fess ships its own JAXB; keep this copy apart from it. -->
+								<relocation>
+									<pattern>jakarta.xml.bind</pattern>
+									<shadedPattern>org.codelibs.fess.ds.wikipedia.jakarta.xml.bind</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
@@ -200,6 +208,18 @@
 			<groupId>io.github.rzo1.org.sweble.wikitext</groupId>
 			<artifactId>swc-engine</artifactId>
 			<version>4.1.0</version>
+			<!-- The JAXB implementation is used only to save and load configurations as XML, which
+			     this plugin never does (the engine needs just the JAXB API classes). -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.glassfish.jaxb</groupId>
+					<artifactId>jaxb-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.activation</groupId>
+					<artifactId>jakarta.activation-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
